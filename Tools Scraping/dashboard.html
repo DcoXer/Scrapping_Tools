@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribution Control — Unit Monitoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2330;
+    --accent: #00e5a0;
+    --accent2: #3b82f6;
+    --accent3: #f59e0b;
+    --danger: #ef4444;
+    --text: #e8eaf0;
+    --muted: #5a6175;
+    --card-glow: rgba(0,229,160,0.04);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    height: 60px;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+    border: 1.5px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .logo-mark::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  }
+
+  .brand {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .brand span { color: var(--accent); }
+
+  .header-nav {
+    display: flex;
+    gap: 4px;
+  }
+
+  .nav-item {
+    padding: 5px 14px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+
+  .nav-item.active, .nav-item:hover {
+    color: var(--accent);
+    background: rgba(0,229,160,0.06);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  .timestamp {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── LAYOUT ── */
+  .main {
+    position: relative;
+    z-index: 1;
+    padding: 24px 32px 40px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .page-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.04em;
+  }
+
+  .period-selector {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px;
+  }
+
+  .period-btn {
+    padding: 5px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+
+  .period-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* ── KPI ROW ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card:hover { border-color: var(--accent); }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--card-glow);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .kpi-card:hover::before { opacity: 1; }
+
+  .kpi-label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .kpi-value.green { color: var(--accent); }
+  .kpi-value.blue  { color: var(--accent2); }
+  .kpi-value.amber { color: var(--accent3); }
+  .kpi-value.red   { color: var(--danger); }
+
+  .kpi-sub {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .kpi-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    margin-top: 6px;
+  }
+
+  .kpi-delta.up { color: var(--accent); }
+  .kpi-delta.down { color: var(--danger); }
+
+  .kpi-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 0 2px 0 0;
+    transition: width 1s ease;
+  }
+
+  .kpi-bar.blue  { background: var(--accent2); }
+  .kpi-bar.amber { background: var(--accent3); }
+  .kpi-bar.red   { background: var(--danger); }
+
+  /* ── GRID 3-COL ── */
+  .grid-main {
+    display: grid;
+    grid-template-columns: 1fr 1fr 380px;
+    gap: 12px;
+    margin-bottom: 12px;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  .grid-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    animation: fadeUp 0.5s 0.3s ease both;
+  }
+
+  /* ── CARD BASE ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .card-badge {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    background: rgba(0,229,160,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,160,0.2);
+  }
+
+  .card-badge.blue {
+    background: rgba(59,130,246,0.08);
+    color: var(--accent2);
+    border-color: rgba(59,130,246,0.2);
+  }
+
+  .card-badge.amber {
+    background: rgba(245,158,11,0.08);
+    color: var(--accent3);
+    border-color: rgba(245,158,11,0.2);
+  }
+
+  .card-body { padding: 16px 18px; }
+
+  /* ── SHIPMENT TREND CHART ── */
+  .chart-area {
+    position: relative;
+    height: 160px;
+    margin-bottom: 12px;
+  }
+
+  .chart-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .chart-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin-top: 6px;
+  }
+
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* ── DEALER TABLE ── */
+  .dealer-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .dealer-table th {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .dealer-table th:not(:first-child) { text-align: right; }
+
+  .dealer-table td {
+    padding: 9px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(30,35,48,0.5);
+    vertical-align: middle;
+  }
+
+  .dealer-table td:not(:first-child) { text-align: right; }
+
+  .dealer-table tr:last-child td { border-bottom: none; }
+
+  .dealer-name {
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .dealer-region {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .progress-mini {
+    width: 60px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-left: auto;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  .progress-fill.blue { background: var(--accent2); }
+  .progress-fill.amber { background: var(--accent3); }
+
+  .status-tag {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .status-tag.sent {
+    background: rgba(0,229,160,0.1);
+    color: var(--accent);
+  }
+
+  .status-tag.progress {
+    background: rgba(59,130,246,0.1);
+    color: var(--accent2);
+  }
+
+  .status-tag.late {
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+  }
+
+  .status-tag.pending {
+    background: rgba(245,158,11,0.1);
+    color: var(--accent3);
+  }
+
+  /* ── MAP PANEL ── */
+  .map-panel {
+    position: relative;
+    background: var(--surface2);
+  }
+
+  .map-body {
+    padding: 16px 18px;
+    height: 340px;
+    position: relative;
+  }
+
+  /* Stylized Indonesia map using SVG paths */
+  .map-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .region-bubble {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: absolute;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+
+  .region-bubble:hover { transform: scale(1.1); }
+
+  .bubble-ring {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0,229,160,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    animation: ringPulse 3s ease-in-out infinite;
+  }
+
+  .bubble-ring::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,229,160,0.1);
+    animation: ringPulse 3s ease-in-out infinite 0.5s;
+  }
+
+  @keyframes ringPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .bubble-inner {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: #000;
+  }
+
+  .bubble-inner.blue { background: var(--accent2); }
+  .bubble-inner.amber { background: var(--accent3); }
+  .bubble-inner.red { background: var(--danger); }
+
+  .bubble-label {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* Connection lines */
+  .connections-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* ── LEAD TIME ── */
+  .leadtime-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .lt-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lt-region {
+    font-size: 10px;
+    width: 80px;
+    flex-shrink: 0;
+    color: var(--muted);
+  }
+
+  .lt-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .lt-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .lt-val {
+    font-size: 11px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── PLAN VS REALISASI ── */
+  .pvr-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+
+  .pvr-month {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pvr-bars {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 80px;
+  }
+
+  .pvr-bar {
+    width: 12px;
+    border-radius: 2px 2px 0 0;
+    transition: height 1s ease;
+  }
+
+  .pvr-bar.plan {
+    background: rgba(59,130,246,0.3);
+    border: 1px solid rgba(59,130,246,0.5);
+  }
+
+  .pvr-bar.real {
+    background: var(--accent);
+  }
+
+  .pvr-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .pvr-ach {
+    font-size: 9px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+
+  /* ── ALERT FEED ── */
+  .alert-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    border-left: 2px solid var(--muted);
+  }
+
+  .alert-item.danger { border-left-color: var(--danger); }
+  .alert-item.warn   { border-left-color: var(--accent3); }
+  .alert-item.info   { border-left-color: var(--accent2); }
+
+  .alert-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .alert-msg {
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .alert-time {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── ANIMATIONS ── */
+  .count-up { animation: countUp 1.2s ease both; }
+
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card { animation: fadeUp 0.5s ease both; }
+  .card:nth-child(1) { animation-delay: 0.1s; }
+  .card:nth-child(2) { animation-delay: 0.15s; }
+  .card:nth-child(3) { animation-delay: 0.2s; }
+
+  /* Animated path */
+  @keyframes drawPath {
+    from { stroke-dashoffset: 1000; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  .animated-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawPath 2s ease forwards;
+  }
+
+  @keyframes connFlow {
+    0% { stroke-dashoffset: 30; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  .conn-line {
+    stroke-dasharray: 6 4;
+    animation: connFlow 1s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo-mark"></div>
+    <div class="brand">Dist<span>Control</span></div>
+  </div>
+  <nav class="header-nav">
+    <div class="nav-item active">Overview</div>
+    <div class="nav-item">Shipment</div>
+    <div class="nav-item">Dealer</div>
+    <div class="nav-item">Wilayah</div>
+    <div class="nav-item">Laporan</div>
+  </nav>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      Live
+    </div>
+    <div class="timestamp">Senin, 23 Mar 2026 — 09:41 WIB</div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">Distribution Monitoring</div>
+      <div class="page-subtitle">End-to-end unit distribution · Gudang → Dealer</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="font-size:10px; color:var(--muted);">Periode</div>
+      <div class="period-selector">
+        <button class="period-btn">7H</button>
+        <button class="period-btn active">30H</button>
+        <button class="period-btn">Q1</button>
+        <button class="period-btn">YTD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Unit Dikirim</div>
+      <div class="kpi-value green count-up">4.827</div>
+      <div class="kpi-delta up">↑ 12.4% vs bulan lalu</div>
+      <div class="kpi-bar" style="width:78%"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Unit Diterima Dealer</div>
+      <div class="kpi-value count-up">4.391</div>
+      <div class="kpi-delta up">↑ 9.1% vs bulan lalu</div>
+      <div class="kpi-bar" style="width:72%"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">On Progress</div>
+      <div class="kpi-value blue count-up">312</div>
+      <div class="kpi-sub">Unit dalam perjalanan</div>
+      <div class="kpi-bar blue" style="width:40%"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Tertunda / Delay</div>
+      <div class="kpi-value amber count-up">124</div>
+      <div class="kpi-delta down">↑ 3 kasus baru hari ini</div>
+      <div class="kpi-bar amber" style="width:20%"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg. Lead Time</div>
+      <div class="kpi-value red count-up">4.2<span style="font-size:16px;color:var(--muted)"> hr</span></div>
+      <div class="kpi-delta down">↑ 0.3 hr vs target</div>
+      <div class="kpi-bar red" style="width:55%"></div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid-main">
+
+    <!-- SHIPMENT TREND -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Tren Pengiriman & Penerimaan</div>
+        <div class="card-badge">30 Hari</div>
+      </div>
+      <div class="card-body">
+        <div class="chart-area">
+          <svg class="chart-svg" viewBox="0 0 460 140" preserveAspectRatio="none">
+            <!-- Y gridlines -->
+            <line x1="0" y1="20" x2="460" y2="20" stroke="#1e2330" stroke-width="0.5"/>
+            <line x1="0" y1="60" x2="460" y2="60" stroke="#1e2330" stroke-width="0.5"/>
+            <line x1="0" y1="100" x2="460" y2="100" stroke="#1e2330" stroke-width="0.5"/>
+            <text x="0" y="16" fill="#5a6175" font-size="8" font-family="DM Mono">600</text>
+            <text x="0" y="56" fill="#5a6175" font-size="8" font-family="DM Mono">400</text>
+            <text x="0" y="96" fill="#5a6175" font-size="8" font-family="DM Mono">200</text>
+
+            <!-- Area fill - kirim -->
+            <path d="M20,90 C40,75 60,60 80,55 C100,50 120,65 140,70 C160,75 180,40 200,35 C220,30 240,45 260,40 C280,35 300,20 320,25 C340,30 360,50 380,45 C400,40 430,30 445,25 L445,130 L20,130Z"
+              fill="url(#areaGrad)" opacity="0.3"/>
+
+            <!-- Line - kirim -->
+            <path class="animated-path" d="M20,90 C40,75 60,60 80,55 C100,50 120,65 140,70 C160,75 180,40 200,35 C220,30 240,45 260,40 C280,35 300,20 320,25 C340,30 360,50 380,45 C400,40 430,30 445,25"
+              fill="none" stroke="#00e5a0" stroke-width="2"/>
+
+            <!-- Line - terima -->
+            <path class="animated-path" d="M20,100 C40,90 60,80 80,75 C100,70 120,80 140,85 C160,90 180,60 200,55 C220,50 240,62 260,58 C280,54 300,38 320,42 C340,46 360,62 380,58 C400,54 430,45 445,40"
+              fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="5 2" style="animation-delay:0.5s"/>
+
+            <!-- Dots highlight -->
+            <circle cx="300" cy="20" r="4" fill="#00e5a0" opacity="0.8"/>
+            <circle cx="300" cy="20" r="8" fill="none" stroke="#00e5a0" stroke-width="1" opacity="0.3"/>
+
+            <defs>
+              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#00e5a0"/>
+                <stop offset="100%" stop-color="#00e5a0" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="chart-labels">
+          <span>1 Mar</span><span>5</span><span>10</span><span>15</span><span>20</span><span>23 Mar</span>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00e5a0"></div>Unit Dikirim</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Unit Diterima</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEALER TABLE -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Distribusi Per Dealer</div>
+        <div class="card-badge blue">Top 8</div>
+      </div>
+      <div class="card-body" style="padding-top:12px;">
+        <table class="dealer-table">
+          <thead>
+            <tr>
+              <th>Dealer</th>
+              <th>Kirim</th>
+              <th>Terima</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="dealer-name">AutoPrime Jakarta</div><div class="dealer-region">DKI Jakarta</div></td>
+              <td><div>842</div><div class="progress-mini"><div class="progress-fill" style="width:90%"></div></div></td>
+              <td>821</td>
+              <td><span class="status-tag sent">Terkirim</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">MegaMotor Surabaya</div><div class="dealer-region">Jawa Timur</div></td>
+              <td><div>714</div><div class="progress-mini"><div class="progress-fill" style="width:75%"></div></div></td>
+              <td>698</td>
+              <td><span class="status-tag sent">Terkirim</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">Bandung Wheels</div><div class="dealer-region">Jawa Barat</div></td>
+              <td><div>623</div><div class="progress-mini"><div class="progress-fill blue" style="width:60%"></div></div></td>
+              <td>587</td>
+              <td><span class="status-tag progress">On Progress</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">Semarang Auto</div><div class="dealer-region">Jawa Tengah</div></td>
+              <td><div>541</div><div class="progress-mini"><div class="progress-fill" style="width:55%"></div></div></td>
+              <td>541</td>
+              <td><span class="status-tag sent">Terkirim</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">Medan Premier</div><div class="dealer-region">Sumatera Utara</div></td>
+              <td><div>490</div><div class="progress-mini"><div class="progress-fill amber" style="width:45%"></div></div></td>
+              <td>412</td>
+              <td><span class="status-tag late">Delay</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">Makassar Motor</div><div class="dealer-region">Sulawesi Sel.</div></td>
+              <td><div>388</div><div class="progress-mini"><div class="progress-fill blue" style="width:40%"></div></div></td>
+              <td>344</td>
+              <td><span class="status-tag progress">On Progress</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">Palembang Drive</div><div class="dealer-region">Sumatera Sel.</div></td>
+              <td><div>312</div><div class="progress-mini"><div class="progress-fill" style="width:35%"></div></div></td>
+              <td>302</td>
+              <td><span class="status-tag sent">Terkirim</span></td>
+            </tr>
+            <tr>
+              <td><div class="dealer-name">Bali Auto Center</div><div class="dealer-region">Bali</div></td>
+              <td><div>287</div><div class="progress-mini"><div class="progress-fill amber" style="width:30%"></div></div></td>
+              <td>241</td>
+              <td><span class="status-tag pending">Pending</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MAP PANEL -->
+    <div class="card map-panel">
+      <div class="card-header">
+        <div class="card-title">Sebaran Wilayah</div>
+        <div class="card-badge">6 Zona</div>
+      </div>
+      <div class="map-body">
+        <!-- Connection lines SVG -->
+        <svg class="connections-svg" viewBox="0 0 344 290">
+          <line class="conn-line" x1="172" y1="145" x2="120" y2="110" stroke="rgba(0,229,160,0.3)" stroke-width="1"/>
+          <line class="conn-line" x1="172" y1="145" x2="220" y2="90" stroke="rgba(0,229,160,0.3)" stroke-width="1"/>
+          <line class="conn-line" x1="172" y1="145" x2="80" y2="175" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+          <line class="conn-line" x1="172" y1="145" x2="270" y2="170" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+          <line class="conn-line" x1="172" y1="145" x2="90" y2="80" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+          <line class="conn-line" x1="172" y1="145" x2="260" y2="220" stroke="rgba(0,229,160,0.3)" stroke-width="1"/>
+        </svg>
+
+        <!-- CENTER HUB -->
+        <div class="region-bubble" style="top:50%;left:50%;transform:translate(-50%,-50%)">
+          <div class="bubble-ring" style="width:52px;height:52px;border-color:rgba(0,229,160,0.5)">
+            <div class="bubble-inner" style="width:40px;height:40px;font-size:13px">HUB</div>
+          </div>
+          <div class="bubble-label">Gudang Pusat</div>
+        </div>
+
+        <!-- JAVA (top-center) -->
+        <div class="region-bubble" style="top:20%;left:55%">
+          <div class="bubble-ring">
+            <div class="bubble-inner">2.7K</div>
+          </div>
+          <div class="bubble-label">Jawa</div>
+        </div>
+
+        <!-- SUMATERA (left) -->
+        <div class="region-bubble" style="top:30%;left:15%">
+          <div class="bubble-ring" style="border-color:rgba(239,68,68,0.3)">
+            <div class="bubble-inner red">890</div>
+          </div>
+          <div class="bubble-label">Sumatera</div>
+        </div>
+
+        <!-- KALIMANTAN (right) -->
+        <div class="region-bubble" style="top:55%;left:75%">
+          <div class="bubble-ring" style="border-color:rgba(245,158,11,0.3)">
+            <div class="bubble-inner amber">412</div>
+          </div>
+          <div class="bubble-label">Kalimantan</div>
+        </div>
+
+        <!-- SULAWESI (bottom-right) -->
+        <div class="region-bubble" style="top:72%;left:72%">
+          <div class="bubble-ring" style="border-color:rgba(59,130,246,0.3)">
+            <div class="bubble-inner blue">344</div>
+          </div>
+          <div class="bubble-label">Sulawesi</div>
+        </div>
+
+        <!-- PAPUA (far right) -->
+        <div class="region-bubble" style="top:60%;left:20%">
+          <div class="bubble-ring" style="border-color:rgba(0,229,160,0.2)">
+            <div class="bubble-inner" style="background:rgba(0,229,160,0.5);font-size:9px">148</div>
+          </div>
+          <div class="bubble-label">Bali & NT</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM GRID -->
+  <div class="grid-bottom">
+
+    <!-- PLAN VS REALISASI -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Rencana vs Realisasi</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="legend-item" style="font-size:9px;gap:5px;"><div style="width:8px;height:8px;background:rgba(59,130,246,0.4);border:1px solid #3b82f6;border-radius:1px"></div><span style="color:var(--muted)">Rencana</span></div>
+          <div class="legend-item" style="font-size:9px;gap:5px;"><div style="width:8px;height:8px;background:var(--accent);border-radius:1px"></div><span style="color:var(--muted)">Realisasi</span></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="pvr-grid">
+          <!-- Oct -->
+          <div class="pvr-month">
+            <div class="pvr-bars">
+              <div class="pvr-bar plan" style="height:65px"></div>
+              <div class="pvr-bar real" style="height:60px"></div>
+            </div>
+            <div class="pvr-label">Okt</div>
+            <div class="pvr-ach" style="color:#00e5a0">92%</div>
+          </div>
+          <!-- Nov -->
+          <div class="pvr-month">
+            <div class="pvr-bars">
+              <div class="pvr-bar plan" style="height:70px"></div>
+              <div class="pvr-bar real" style="height:72px"></div>
+            </div>
+            <div class="pvr-label">Nov</div>
+            <div class="pvr-ach" style="color:#00e5a0">103%</div>
+          </div>
+          <!-- Dec -->
+          <div class="pvr-month">
+            <div class="pvr-bars">
+              <div class="pvr-bar plan" style="height:75px"></div>
+              <div class="pvr-bar real" style="height:68px"></div>
+            </div>
+            <div class="pvr-label">Des</div>
+            <div class="pvr-ach" style="color:#f59e0b">91%</div>
+          </div>
+          <!-- Jan -->
+          <div class="pvr-month">
+            <div class="pvr-bars">
+              <div class="pvr-bar plan" style="height:60px"></div>
+              <div class="pvr-bar real" style="height:55px"></div>
+            </div>
+            <div class="pvr-label">Jan</div>
+            <div class="pvr-ach" style="color:#f59e0b">92%</div>
+          </div>
+          <!-- Feb -->
+          <div class="pvr-month">
+            <div class="pvr-bars">
+              <div class="pvr-bar plan" style="height:68px"></div>
+              <div class="pvr-bar real" style="height:74px"></div>
+            </div>
+            <div class="pvr-label">Feb</div>
+            <div class="pvr-ach" style="color:#00e5a0">109%</div>
+          </div>
+          <!-- Mar -->
+          <div class="pvr-month">
+            <div class="pvr-bars">
+              <div class="pvr-bar plan" style="height:72px"></div>
+              <div class="pvr-bar real" style="height:52px; background:rgba(0,229,160,0.4);"></div>
+            </div>
+            <div class="pvr-label">Mar</div>
+            <div class="pvr-ach" style="color:#3b82f6">72%*</div>
+          </div>
+        </div>
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border); display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div>
+            <div class="kpi-label">Target YTD</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--text)">24.500</div>
+          </div>
+          <div>
+            <div class="kpi-label">Realisasi YTD</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#00e5a0">22.831</div>
+          </div>
+          <div>
+            <div class="kpi-label">Pencapaian</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#f59e0b">93.2%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEAD TIME + ALERTS -->
+    <div style="display:grid;grid-template-rows:1fr auto;gap:12px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Lead Time per Wilayah</div>
+          <div class="card-badge amber">Target: ≤ 4h</div>
+        </div>
+        <div class="card-body">
+          <div class="leadtime-list">
+            <div class="lt-item">
+              <div class="lt-region">DKI Jakarta</div>
+              <div class="lt-bar-wrap"><div class="lt-bar-fill" style="width:30%;background:#00e5a0"></div></div>
+              <div class="lt-val" style="color:#00e5a0">1.8h</div>
+            </div>
+            <div class="lt-item">
+              <div class="lt-region">Jawa Barat</div>
+              <div class="lt-bar-wrap"><div class="lt-bar-fill" style="width:45%;background:#00e5a0"></div></div>
+              <div class="lt-val" style="color:#00e5a0">2.7h</div>
+            </div>
+            <div class="lt-item">
+              <div class="lt-region">Jawa Timur</div>
+              <div class="lt-bar-wrap"><div class="lt-bar-fill" style="width:60%;background:#f59e0b"></div></div>
+              <div class="lt-val" style="color:#f59e0b">3.6h</div>
+            </div>
+            <div class="lt-item">
+              <div class="lt-region">Sumatera</div>
+              <div class="lt-bar-wrap"><div class="lt-bar-fill" style="width:80%;background:#ef4444"></div></div>
+              <div class="lt-val" style="color:#ef4444">5.2h</div>
+            </div>
+            <div class="lt-item">
+              <div class="lt-region">Kalimantan</div>
+              <div class="lt-bar-wrap"><div class="lt-bar-fill" style="width:75%;background:#ef4444"></div></div>
+              <div class="lt-val" style="color:#ef4444">4.8h</div>
+            </div>
+            <div class="lt-item">
+              <div class="lt-region">Sulawesi</div>
+              <div class="lt-bar-wrap"><div class="lt-bar-fill" style="width:70%;background:#f59e0b"></div></div>
+              <div class="lt-val" style="color:#f59e0b">4.4h</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Alert & Notifikasi</div>
+          <div class="card-badge" style="background:rgba(239,68,68,0.08);color:#ef4444;border-color:rgba(239,68,68,0.2)">3 Aktif</div>
+        </div>
+        <div class="card-body">
+          <div class="alert-feed">
+            <div class="alert-item danger">
+              <div class="alert-icon">⚠</div>
+              <div>
+                <div class="alert-msg">Pengiriman ke Medan Premier terlambat 18 jam — 78 unit belum diterima</div>
+                <div class="alert-time">Hari ini, 07:22 WIB</div>
+              </div>
+            </div>
+            <div class="alert-item warn">
+              <div class="alert-icon">◈</div>
+              <div>
+                <div class="alert-msg">Stok gudang zona Kalimantan mendekati batas minimum (120 unit)</div>
+                <div class="alert-time">Hari ini, 08:45 WIB</div>
+              </div>
+            </div>
+            <div class="alert-item info">
+              <div class="alert-icon">→</div>
+              <div>
+                <div class="alert-msg">Realisasi Bali & NT 84% — target Q1 butuh akselerasi 43 unit</div>
+                <div class="alert-time">Kemarin, 18:00 WIB</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+  // Animate KPI bars on load
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.kpi-bar').forEach(b => {
+      const w = b.style.width;
+      b.style.width = '0';
+      setTimeout(() => { b.style.width = w; }, 300);
+    });
+
+    // Animate lead time bars
+    document.querySelectorAll('.lt-bar-fill').forEach(b => {
+      const w = b.style.width;
+      b.style.width = '0';
+      setTimeout(() => { b.style.width = w; }, 500);
+    });
+
+    // Animate PVR bars
+    document.querySelectorAll('.pvr-bar').forEach(b => {
+      const h = b.style.height;
+      b.style.height = '0';
+      setTimeout(() => { b.style.height = h; }, 600);
+    });
+  });
+
+  // Live timestamp
+  function updateTime() {
+    const now = new Date();
+    const options = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+    const time = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    document.querySelector('.timestamp').textContent = `${now.toLocaleDateString('id-ID', options)} — ${time} WIB`;
+  }
+  updateTime();
+  setInterval(updateTime, 1000);
+
+  // Period button toggle
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Nav toggle
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
